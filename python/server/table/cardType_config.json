@@ -1,0 +1,162 @@
+{
+  "1": {
+    "expendNumber": 1, 
+    "describe": "同花顺", 
+    "value": [
+      305, 
+      306, 
+      307, 
+      308, 
+      309
+    ], 
+    "times": 4, 
+    "type": [
+      13
+    ], 
+    "id": 1
+  }, 
+  "2": {
+    "expendNumber": 2, 
+    "describe": "炸弹", 
+    "value": [
+      8, 
+      208, 
+      308, 
+      108, 
+      301
+    ], 
+    "times": 4, 
+    "type": [
+      12
+    ], 
+    "id": 2
+  }, 
+  "3": {
+    "expendNumber": 3, 
+    "describe": "四十", 
+    "value": [
+      208, 
+      308, 
+      209, 
+      309, 
+      207
+    ], 
+    "times": 4, 
+    "type": [
+      14
+    ], 
+    "id": 3
+  }, 
+  "4": {
+    "expendNumber": 4, 
+    "describe": "十小", 
+    "value": [
+      301, 
+      201, 
+      202, 
+      203, 
+      204
+    ], 
+    "times": 4, 
+    "type": [
+      15
+    ], 
+    "id": 4
+  }, 
+  "5": {
+    "expendNumber": 5, 
+    "describe": "葫芦", 
+    "value": [
+      301, 
+      201, 
+      1, 
+      202, 
+      2
+    ], 
+    "times": 4, 
+    "type": [
+      17
+    ], 
+    "id": 5
+  }, 
+  "6": {
+    "expendNumber": 6, 
+    "describe": "顺子", 
+    "value": [
+      302, 
+      203, 
+      4, 
+      105, 
+      206
+    ], 
+    "times": 4, 
+    "type": [
+      16
+    ], 
+    "id": 6
+  }, 
+  "7": {
+    "expendNumber": 7, 
+    "describe": "金牌十点", 
+    "value": [
+      304, 
+      204, 
+      104, 
+      208, 
+      202
+    ], 
+    "times": 4, 
+    "type": [
+      28
+    ], 
+    "id": 7
+  }, 
+  "8": {
+    "expendNumber": 8, 
+    "describe": "金牌九点", 
+    "value": [
+      304, 
+      204, 
+      104, 
+      208, 
+      201
+    ], 
+    "times": 3, 
+    "type": [
+      27
+    ], 
+    "id": 8
+  }, 
+  "9": {
+    "expendNumber": 9, 
+    "describe": "金牌八点", 
+    "value": [
+      304, 
+      204, 
+      104, 
+      106, 
+      302
+    ], 
+    "times": 2, 
+    "type": [
+      26
+    ], 
+    "id": 9
+  }, 
+  "10": {
+    "expendNumber": 10, 
+    "describe": "金牌七点", 
+    "value": [
+      304, 
+      204, 
+      104, 
+      206, 
+      1
+    ], 
+    "times": 2, 
+    "type": [
+      25
+    ], 
+    "id": 10
+  }
+}
