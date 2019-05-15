@@ -1,5 +1,9 @@
 #!/usr/bin/python3
 
+##author ss
+##param
+##date
+##description
 import os
 import sys
 import json
@@ -190,7 +194,7 @@ class JsonToTxt:
                             len_index = i_str.rfind(",")
                             i_str = i_str[len_index + 1:]
                         self.write(TARGET_FILE5, str(i_str))
-
+    ###合并文件数据
     def getContent6(self):
         self.truncateFile(TARGET_FILE)
         dirs = os.listdir(SOURCE_FILE)
