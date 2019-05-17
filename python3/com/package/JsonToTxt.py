@@ -4,11 +4,13 @@
 ##param
 ##date
 ##description
+
 import os
 import sys
 import json
 import datetime
 import csv
+import configAssets
 # import numpy as np
 # import pandas as pd
 # import copy_doc_class
@@ -264,7 +266,7 @@ class JsonToTxt:
                 fileCsv = fileCsv.replace(".txt", "")
                 fileCsv = fileCsv + ".csv"
                 filePath = os.path.join(SOURCE_FILE, file)
-                print('文件名：-->%s   csv文件-->>>%s\n' % (file,fileCsv))
+                print('文件名：-->%s \n  csv文件-->>>%s\n' % (filePath,fileCsv))
                 cpath = os.path.join(SOURCE_FILE, fileCsv)
                 with open(cpath, 'w', newline='') as csvfile:
                     writer = csv.writer(csvfile)

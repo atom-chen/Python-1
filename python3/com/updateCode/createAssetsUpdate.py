@@ -5,6 +5,5 @@ import hashlib
 import sys
 import shutil
 import json
-import commonds
-import configAssetsUpdate
+import updateAssetsConfig
 import binascii

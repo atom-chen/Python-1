@@ -89,3 +89,31 @@ Q_2 = "Q2"
 # f_head = open(HEAD_TEXT_1,"r")
 # USER_AGENT = f_head.readlines()
 # f_head.close()
+
+##共有方法
+# 计算时间差，=格式：时分秒
+def getTimeDiff(startTime,endTime):
+    seconds = (startTime - endTime).seconds
+    m, s = divmod(seconds, 60)
+    h, m = divmod(m, 60)
+    diff = ("%02d:%02d:%02d" % (h, m, s))
+    return diff
+
+##将字符串写入文件
+def writeFile(fileName,str_):
+    with open(fileName, 'a') as f:
+        f.writelines(str_)
+        f.write('\n')
+
+# 清空文档
+def truncateFile(path):
+    with open(path, 'w') as f:
+        f.truncate()
+
+# 读取文档
+def read(path):
+    with open(path, 'r') as f:
+        txt = []
+        for s in f.readlines():
+            txt.append(s.strip())
+    return txt
