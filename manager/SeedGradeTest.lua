@@ -1,108 +1,146 @@
+--
+-- Author: Huang Hai Long
+-- Date: 2016-10-11 14:04:41
+--
+
 local scheduler = require("framework.scheduler")
-local SeedGrade = class("SeedGrade")
+local SeedGradeTest = class("SeedGradeTest")
 
+SeedGradeTest.HEAD_COLUMN_1 = 1		--玩牌区
+SeedGradeTest.HEAD_COLUMN_2 = 2
+SeedGradeTest.HEAD_COLUMN_3 = 3
+SeedGradeTest.HEAD_COLUMN_4 = 4
+SeedGradeTest.HEAD_COLUMN_5 = 5
+SeedGradeTest.HEAD_COLUMN_6 = 6
+SeedGradeTest.HEAD_COLUMN_MAX = 7
 
-SeedGrade.HEAD_COLUMN_1 = 1		--牌桌
-SeedGrade.HEAD_COLUMN_2 = 2
-SeedGrade.HEAD_COLUMN_3 = 3
-SeedGrade.HEAD_COLUMN_4 = 4
-SeedGrade.HEAD_COLUMN_5 = 5
-SeedGrade.HEAD_COLUMN_6 = 6
-SeedGrade.HEAD_COLUMN_MAX = 7
+SeedGradeTest.HEAD_COLLECT_1 = 8	--集牌区
+SeedGradeTest.HEAD_COLLECT_2 = 9
+SeedGradeTest.HEAD_COLLECT_3 = 10
+SeedGradeTest.HEAD_COLLECT_MAX = 11
 
-SeedGrade.HEAD_COLLECT_1 = 8	--集牌区
-SeedGrade.HEAD_COLLECT_2 = 9
-SeedGrade.HEAD_COLLECT_3 = 10
-SeedGrade.HEAD_COLLECT_MAX = 11
+SeedGradeTest.HEAD_CHANGE_1 = 12	--切牌区,已打开
+SeedGradeTest.HEAD_CHANGE_MAX = 13	--切牌区，未打开
 
-SeedGrade.HEAD_CHANGE_1 = 12	--换牌区,已打开
-SeedGrade.HEAD_CHANGE_MAX = 13	--换牌区，未打开
+SeedGradeTest.AI_STATUS_INIT = 1 --初始化
+SeedGradeTest.AI_STATUS_PLAYING = 2 --游戏中
+SeedGradeTest.AI_STATUS_END = 3 --结束
 
-SeedGrade.RESERVE_NUM = 24 --切牌时预留的张数
-
-SeedGrade.AI_STATUS_INIT = 1 --初始化
-SeedGrade.AI_STATUS_PLAYING = 2 --游戏中
-SeedGrade.AI_STATUS_END = 3 --结束
-
-SeedGrade.FIRST_COLLECT_SCORE = 2
-SeedGrade.COLLECT_SCORE = 1
-SeedGrade.PASS_COLLECT_SCORE = 50
-
-SeedGrade.delayEndCd = 120 --延迟结束时间
-
-SeedGrade.AI_EASY = "easy" --简单难度
-SeedGrade.AI_NORMAL = "normal" --中等难度
-SeedGrade.AI_HARD = "hard" --困难难度
+SeedGradeTest.AI_EASY = "easy" --简单难度
+SeedGradeTest.AI_NORMAL = "normal" --中等难度
+SeedGradeTest.AI_HARD = "hard" --困难难度
 
 --AI逻辑cd
-SeedGrade.JUDGE_AI_CD = {
+SeedGradeTest.JUDGE_AI_CD = {
 	easy = {2,3},
 	normal = {1,2},
 	hard = {0,1}
 }
 
 --收牌逻辑cd
-SeedGrade.JUDGE_COLLECT_CD = {
+SeedGradeTest.JUDGE_COLLECT_CD = {
 	easy = {1,2},
 	normal = {0.5,1},
 	hard = {0,0.5}
 }
 
 --延迟结束
-SeedGrade.DELAY_END_TIME = {
+SeedGradeTest.DELAY_END_TIME = {
 	easy = {10,20},
 	normal = {20,30},
 	hard = {30,40}
 }
 
 --收牌逻辑cd加速度
-SeedGrade.JUDGE_COLLECT_CD_RATE = 1
+SeedGradeTest.JUDGE_COLLECT_CD_RATE = 1
 
-function SeedGrade:ctor( _seed )
-	self.headsList_ = {}
+function SeedGradeTest:ctor(manager,seed_ai)
+	self.manager_ = manager
+	self.aiAutoCollect_ = false
+	self.aiStatus_ = SeedGradeTest.AI_STATUS_INIT
+	self.aiLevel_ = SeedGradeTest.AI_NORMAL
 	
-	self.seed_ = _seed
+	self.emptyChangeNum_ = 0 --空切牌数(用于判断是否无操作可做)
+
 	self.recordList_ = {}
-	self.delayTime_ = nil
-
+	self.headsList_ = {}
 	self.isNeedEmptyCol_ = true
+	self.isDraw3_ = false
 
-	self.aiLevel_ = SeedGrade.AI_NORMAL
+	self.score_ = 0 --ai 的分数
 
+	self.pause_ = false
+
+	self.delayTime_ = nil
 	self.isQuick = true
 
 	self:startGame(_seed)
 end
 
-function SeedGrade:getRandomBy_( a,b )
-	if not a or not b then
-		return 0
-	end
-
-	local begin_ = a * 10
-	local end_ = b * 10
-
-	local result_ = math.random(begin_,end_)
-
-	return result_ / 10
-end
-
-function SeedGrade:setDelayEnd( ... )
-	self.delayTime_ = self:getRandomBy_(SeedGrade.DELAY_END_TIME[self.aiLevel_][1], SeedGrade.DELAY_END_TIME[self.aiLevel_][2])
-end
-
-function SeedGrade:getCollectRandomBy_( a,b )
-	local min_ = a
-	local max_ = b
-
-end
-
-function SeedGrade:startGame( _seed )
+function SeedGradeTest:startGame( _seed )
 	self:initCardBySeed(_seed)
 end
 
-function SeedGrade:jidgeCollectListExistCard( card )
-	for i=SeedGrade.HEAD_COLLECT_1,SeedGrade.HEAD_COLLECT_MAX do
+function SeedGradeTest:setDelayEnd()
+	self.delayTime_ = self:getRandomBy_(SeedGradeTest.DELAY_END_TIME[self.aiLevel_][1],SeedGradeTest.DELAY_END_TIME[self.aiLevel_][2])
+end
+
+function SeedGradeTest:setLevel(level)
+	if not level then
+		return
+	end
+	self.aiLevel_ = level
+end
+
+function SeedGradeTest:setIs3Draw(b)
+	self.isDraw3_ = b
+end
+
+function SeedGradeTest:getCollectRandomBy_(a,b)
+	local min_ = a
+	local max_ = b
+	if self.manager_ and self.manager_.score_ then
+		local m_ = self.score_
+		if m_ <= 0 then
+			m_ = 1
+		end
+		local arg_ = (self.score_ - self.manager_.score_)/m_
+		local basic_ = 1 + arg_*SeedGradeTest.JUDGE_COLLECT_CD_RATE
+		if basic_ < 0.5 then
+			basic_ = 0.5
+		end
+		-- if self.aiLevel_ == SeedGradeTest.AI_HARD then
+		-- 	printf("===[%s]==> SeedGradeTest [%s] = %s",tostring(SeedGradeTest.JUDGE_COLLECT_CD_RATE),tostring(arg_),tostring(basic_))
+		-- end
+		
+		min_ = a*basic_
+		max_ = b*basic_
+
+		-- if self.aiLevel_ == SeedGradeTest.AI_HARD then
+		-- 	printf("[%s]--[%s]", tostring(min_),tostring(max_))
+		-- end
+		
+	end
+	return self:getRandomBy_(min_,max_)
+end
+
+function SeedGradeTest:getRandomBy_(a,b)
+	if not a or not b then
+		return 0
+	end
+	local begin_ = a*10
+	local end_ = b*10
+	local result_ = math.random(begin_,end_)
+	
+	return result_/10
+end
+
+function SeedGradeTest:getScore()
+	return self.score_
+end
+
+function SeedGradeTest:judgeCollectListExistCard(card)
+	for i=SeedGradeTest.HEAD_COLLECT_1,SeedGradeTest.HEAD_COLLECT_MAX do
 		local cList_ = DealerController.getListByHead(self.headsList_[i])
 		for j=1,#cList_ do
 			if card.rank_ == cList_[j].rank_  --点数相同
@@ -114,9 +152,9 @@ function SeedGrade:jidgeCollectListExistCard( card )
 	return false
 end
 
-function SeedGrade:getAICollectList( ... )
+function SeedGradeTest:getAICollectList()
 	local list_ = {}
-	for i=SeedGrade.HEAD_COLLECT_1,SeedGrade.HEAD_COLLECT_MAX do
+	for i=SeedGradeTest.HEAD_COLLECT_1,SeedGradeTest.HEAD_COLLECT_MAX do
 		local cList_ = DealerController.getListByHead(self.headsList_[i])
 		if #cList_ > 0 then
 			list_[i] = cList_
@@ -125,30 +163,79 @@ function SeedGrade:getAICollectList( ... )
 	return list_
 end
 
-function SeedGrade:aiEnd(isWin)
-	print('---->>>:结束')
-	if self.scheduleHandle then
-        scheduler.unscheduleGlobal(self.scheduleHandle)
-        self.scheduleHandle = nil
-    end
+function SeedGradeTest:getAIStatus()
+	return self.aiStatus_
 end
 
-function SeedGrade:begin( ... )
+function SeedGradeTest:ending()
+	self.aiStatus_ = SeedGradeTest.AI_STATUS_END
+end
+
+function SeedGradeTest:aiEnd(isWin)
+	self:ending()
+
+	printf("[AI] -- :结束，得分[%s]", tostring(self.score_))
+
+	EventNoticeManager:getInstance():dispatchEvent({name = Notice.USER_AILOGIC_END,win = isWin})
+end
+
+function SeedGradeTest:begin()
+	self.aiStatus_ = SeedGradeTest.AI_STATUS_PLAYING
+	local delay_ = 1 --发牌动画延迟
+	self.aiCd_ = delay_ + self:getCollectRandomBy_(SeedGradeTest.JUDGE_COLLECT_CD[self.aiLevel_][1],SeedGradeTest.JUDGE_COLLECT_CD[self.aiLevel_][2])
 	self.scheduleHandle = scheduler.scheduleUpdateGlobal(function ( dt )
-		self:aiQucikCollect_(dt)
+		-- self:aiQucikCollect_(dt)
 		self:update(dt)
 	end,1)
-	
 end
 
-function SeedGrade:update( t )
-	self.isQuick = false
-	if not self.isQuick then
+function SeedGradeTest:setDelegate(delegate)
+	self.delegate_ = delegate
+end
+
+function SeedGradeTest:update(t)
+	if self.aiStatus_ ~= SeedGradeTest.AI_STATUS_PLAYING then
+		return
+	end
+
+	if self.delayTime_ then
+		self.delayTime_ = self.delayTime_ - t
+		if self.delayTime_ <= 0 then
+			self.delayTime_ = nil
+			self:aiEnd(false)
+			return
+		end
+	end
+
+	self.aiCd_ = self.aiCd_ - t
+	if self.aiCd_ <= 0 then
 		self:doAiLogic()
 	end
 end
 
-function SeedGrade:copyCard_(card)
+function SeedGradeTest:initCardByList(list)
+	self.headsList_ = {}
+	if not list then
+		return
+	end
+	for i=SeedGradeTest.HEAD_COLUMN_1,SeedGradeTest.HEAD_CHANGE_MAX do
+		local head_ = list[i]
+		local before_ = nil
+		while head_ do
+			local copyHead_ = self:copyCard_(head_)
+			copyHead_:setBeforeCard(before_)
+			if before_ then
+				before_:setNextCard(copyHead_)
+			else
+				self.headsList_[i] = copyHead_
+			end
+			before_ = copyHead_
+			head_ = head_:getNextCard()
+		end
+	end
+end
+
+function SeedGradeTest:copyCard_(card)
 	local result = CardVO.new({
 				deck = card.deck_,
 				suit = card.suit_, --花色
@@ -162,37 +249,35 @@ function SeedGrade:copyCard_(card)
 	return result
 end
 
-function SeedGrade:initCardBySeed( seed )
-	if not seed then
+--初始化牌
+function SeedGradeTest:initCardBySeed( _seed )
+	self.headsList_ = {}
+	if not _seed then
 		return
 	end
 	--获取牌组
 	local list = DealerController.initCards()
-	local seed_ = seed
 
-	list,seed_ = DealerController.shuffleCards(list,seed_)
-	self.seed_ = seed_
+	--洗牌
+	list = DealerController.shuffleCards(list, _seed)
 
-	function linkCard_( before,cardVO,headIndex )
+	function linkCard_( before, cardVO, headIndex )
 		cardVO:setBeforeCard(before)
-		cardVO:setProperty("headIndex",headIndex)
+		cardVO:setProperty("headIndex", headIndex)
 		if before == nil then
 			self.headsList_[headIndex] = cardVO
 		else
 			before:setNextCard(cardVO)
 		end
 	end
-	-- print('--list count',#list)
-
-	local cacheList = {}
-	local backCardsList = {}
-	for column = 1,7 do
+	--初始化玩牌区的牌
+	for column=1,7 do
 		local before = nil
-		for num = 1,column do
+		for num=1,column do
 			local cardVO = list[1]
-			table.remove(list,1)
-			linkCard_(before,cardVO,column)
-			-- print('=====>>>>>>>',column,num)
+			table.remove(list, 1)
+			linkCard_(before, cardVO, column)
+			--发牌结束之后会有翻牌动画，这里就不做处理了
 			if num >= column then
 				cardVO:setProperty("board", CardVO.BOARD_FACE)
 			else
@@ -201,44 +286,39 @@ function SeedGrade:initCardBySeed( seed )
 			before = cardVO
 		end
 	end
-
-	--发牌区域的牌全部显示
+	--初始化切牌区的牌
 	local before = nil
-	for i = 1,#list do
-		-- print('--->>>>>#list',i)
-		local cardVO =list[i]
-		linkCard_(before,cardVO,SeedGrade.HEAD_CHANGE_MAX)
-		cardVO:setProperty("board",CardVO.BOARD_FACE)
+	for i=1,#list do
+		local cardVO = list[i]
+		linkCard_(before, cardVO, SeedGradeTest.HEAD_CHANGE_MAX)
+		cardVO:setProperty("board", CardVO.BOARD_BACK)
 		before = cardVO
 	end
 end
 
 --执行AI逻辑(一步)
-function SeedGrade:doAiLogic()
-	if self.isQuick then
-		return
-	end
-
+function SeedGradeTest:doAiLogic()
 	self:judgeNeedEmptyCol_()
-	
 	--判断是否有牌可以收
 	local b = self:aiCollect_()
 	if b then
 		self.emptyChangeNum_ = 0 --空切牌数(用于判断是否无操作可做)
+		self.aiCd_ = self:getCollectRandomBy_(SeedGradeTest.JUDGE_COLLECT_CD[self.aiLevel_][1],SeedGradeTest.JUDGE_COLLECT_CD[self.aiLevel_][2])
 		return
 	end
 
+	--重置AI cd
+	self.aiCd_ = self:getRandomBy_(SeedGradeTest.JUDGE_AI_CD[self.aiLevel_][1],SeedGradeTest.JUDGE_AI_CD[self.aiLevel_][2])
+
 	--判断玩牌区是否可以有效移动
-	
 	local aiMoveVO_ = self:move_()
 	if aiMoveVO_ then
 		self.emptyChangeNum_ = 0 --空切牌数(用于判断是否无操作可做)
-		-- printf("[AI] -- :玩牌区移动")
+		printf("[AI] -- :玩牌区移动")
 		local call_ = nil
 		if self.aiAutoCollect_ then
 			call_ = handler(self, self.autoCollect_)
 		end
-		printf("[AI] -- :玩牌区移动 %s",aiMoveVO_.card_:getCardName())
 		self:doMoveLogic_(aiMoveVO_,call_)
 		return
 	end
@@ -247,7 +327,7 @@ function SeedGrade:doAiLogic()
 	local aiMoveVO_ = self:changePut_()
 	if aiMoveVO_ then
 		self.emptyChangeNum_ = 0 --空切牌数(用于判断是否无操作可做)
-		printf("[AI] -- :切牌区落下 %s",aiMoveVO_.card_:getCardName())
+		printf("[AI] -- :切牌区落下")
 		local call_ = nil
 		if self.aiAutoCollect_ then
 			call_ = handler(self, self.autoCollect_)
@@ -263,7 +343,7 @@ function SeedGrade:doAiLogic()
 		--是否还有操作可做
 		local emptyRound_ = self:getEmptyRound_()
 		if emptyRound_ > 1 then
-			printf("[AI] -- : 切牌 无操作可做!")
+			printf("[AI] -- : 无操作可做!")
 			self:aiEnd(false)
 		end
 		return
@@ -271,7 +351,7 @@ function SeedGrade:doAiLogic()
 
 	if self:judgeWin_() then
 		printf("[AI] -- : AI通关了!")
-		-- self:passScoreLogic_()
+		self:passScoreLogic_()
 		self:aiEnd(true)
 	else
 		--无操作可做
@@ -281,9 +361,9 @@ function SeedGrade:doAiLogic()
 end
 
 --空切的轮数
-function SeedGrade:getEmptyRound_()
-	local changeLen_ = DealerController.getQueueLenByHead(self.headsList_[SeedGrade.HEAD_CHANGE_1])
-	local changeMaxLen_ = DealerController.getQueueLenByHead(self.headsList_[SeedGrade.HEAD_CHANGE_MAX])
+function SeedGradeTest:getEmptyRound_()
+	local changeLen_ = DealerController.getQueueLenByHead(self.headsList_[SeedGradeTest.HEAD_CHANGE_1])
+	local changeMaxLen_ = DealerController.getQueueLenByHead(self.headsList_[SeedGradeTest.HEAD_CHANGE_MAX])
 	local result_ = 0
 	if self.emptyChangeNum_ > changeLen_ + changeMaxLen_ then
 		result_ = 1
@@ -294,17 +374,17 @@ function SeedGrade:getEmptyRound_()
 	return result_
 end
 
-function SeedGrade:judgeWin_()
+function SeedGradeTest:judgeWin_()
 	local win = true
 	--牌桌和换牌区都没有卡牌的时候胜利
-	for i=SeedGrade.HEAD_COLUMN_1,SeedGrade.HEAD_COLUMN_MAX do
+	for i=SeedGradeTest.HEAD_COLUMN_1,SeedGradeTest.HEAD_COLUMN_MAX do
 		if self.headsList_[i] then
 			win = false
 			break
 		end
 	end
 	if win then
-		if self.headsList_[SeedGrade.HEAD_CHANGE_1] or self.headsList_[SeedGrade.HEAD_CHANGE_MAX] then
+		if self.headsList_[SeedGradeTest.HEAD_CHANGE_1] or self.headsList_[SeedGradeTest.HEAD_CHANGE_MAX] then
 			win = false
 		end
 	end
@@ -312,11 +392,11 @@ function SeedGrade:judgeWin_()
 end
 
 --玩牌区是否有牌可以落到curCard上(有效移动)
-function SeedGrade:judgePut_(curCard,list)
+function SeedGradeTest:judgePut_(curCard,list)
 	if not curCard then
 		return false
 	end
-	for i=SeedGrade.HEAD_COLUMN_1,SeedGrade.HEAD_COLUMN_MAX do
+	for i=SeedGradeTest.HEAD_COLUMN_1,SeedGradeTest.HEAD_COLUMN_MAX do
 		if i ~= curCard.headIndex_ then
 			local card = list[i]
 			--该队列第一张正面的牌
@@ -336,7 +416,7 @@ function SeedGrade:judgePut_(curCard,list)
 end
 
 --切牌区是否有牌可以落到curCard
-function SeedGrade:judgeCanChangePutOn_(curCard,list)
+function SeedGradeTest:judgeCanChangePutOn_(curCard,list)
 	if not curCard then
 		return false
 	end
@@ -361,18 +441,18 @@ function SeedGrade:judgeCanChangePutOn_(curCard,list)
 end
 
 --玩牌区是否有同色系同点数的牌存在 [-1:有，但是可以通过收牌来消除 / 0:没有 / 1:有，且暂时无法消除]
-SeedGrade.sameCard_yes_can_collect = 1 --有，但是可以通过收牌来消除
-SeedGrade.sameCard_no = 2 --没有
-SeedGrade.sameCard_yes = 3 --有，且暂时无法消除
+SeedGradeTest.sameCard_yes_can_collect = 1 --有，但是可以通过收牌来消除
+SeedGradeTest.sameCard_no = 2 --没有
+SeedGradeTest.sameCard_yes = 3 --有，且暂时无法消除
 
-function SeedGrade:judgeSameCard_(curCard,list)
+function SeedGradeTest:judgeSameCard_(curCard,list)
 	if not curCard then
-		return SeedGrade.sameCard_yes
+		return SeedGradeTest.sameCard_yes
 	end
 
 	--符合条件的牌
 	local sameCard_ = nil
-	for i=SeedGrade.HEAD_COLUMN_1,SeedGrade.HEAD_COLUMN_MAX do
+	for i=SeedGradeTest.HEAD_COLUMN_1,SeedGradeTest.HEAD_COLUMN_MAX do
 		local card = list[i]
 		--该队列第一张正面的牌
 		card = DealerController.getFirstFaceCardFromHead(card)
@@ -396,39 +476,39 @@ function SeedGrade:judgeSameCard_(curCard,list)
 			--可被收
 			local isCanCollect_ = self:judgeCollect_(copySameCard_,list)
 			if isCanCollect_ then
-				return SeedGrade.sameCard_yes_can_collect
+				return SeedGradeTest.sameCard_yes_can_collect
 			else
-				return SeedGrade.sameCard_yes
+				return SeedGradeTest.sameCard_yes
 			end
 		else --是列尾
-			return SeedGrade.sameCard_yes
+			return SeedGradeTest.sameCard_yes
 		end
 	end
 
-	return SeedGrade.sameCard_no
+	return SeedGradeTest.sameCard_no
 end
 
 --玩牌区是否有不是头牌的K
-function SeedGrade:judgeNotHeadKCard_(list)
-	for i=SeedGrade.HEAD_COLUMN_1,SeedGrade.HEAD_COLUMN_MAX do
+function SeedGradeTest:judgeNotHeadKCard_(list)
+	for i=SeedGradeTest.HEAD_COLUMN_1,SeedGradeTest.HEAD_COLUMN_MAX do
 		local card = list[i]
 		--该队列第一张正面的牌
 		card = DealerController.getFirstFaceCardFromHead(card)
 		if card --不是空列
 			and card:getBeforeCard() --不是头牌
 			and card.rank_ == CardVO.RANK_KING then --点数为K
-			return true,card
+			return true
 		end	
 	end
 	return false
 end
 
 --获取切牌区 点数为rank色系为color(不传就不考虑色系条件) 的牌
-function SeedGrade:getChangeCardBy_(list,rank,color)
+function SeedGradeTest:getChangeCardBy_(list,rank,color)
 	local list_ = {}
 
 	--切牌区(打开)
-	local changeHead_ = self.headsList_[SeedGrade.HEAD_CHANGE_1]
+	local changeHead_ = self.headsList_[SeedGradeTest.HEAD_CHANGE_1]
 	while changeHead_ do
 		if changeHead_.rank_ == rank then
 			if not color 
@@ -440,7 +520,7 @@ function SeedGrade:getChangeCardBy_(list,rank,color)
 	end
 
 	--切牌区(未打开)
-	local changeMaxHead_ = self.headsList_[SeedGrade.HEAD_CHANGE_MAX]
+	local changeMaxHead_ = self.headsList_[SeedGradeTest.HEAD_CHANGE_MAX]
 	while changeMaxHead_ do
 		if changeMaxHead_.rank_ == rank then
 			if not color 
@@ -454,7 +534,8 @@ function SeedGrade:getChangeCardBy_(list,rank,color)
 	return list_
 end
 
-function SeedGrade:judgeCollect_(curCard,list)
+
+function SeedGradeTest:judgeCollect_(curCard,list)
 	if curCard and not curCard:getNextCard() then --可收集时必定是最后一张牌
 		--如果有牌可以落，则不考虑收这张牌
 		if self:judgePut_(curCard,list) then
@@ -462,7 +543,7 @@ function SeedGrade:judgeCollect_(curCard,list)
 			return
 		end
 		
-		for i=SeedGrade.HEAD_COLLECT_1,SeedGrade.HEAD_COLLECT_MAX do
+		for i=SeedGradeTest.HEAD_COLLECT_1,SeedGradeTest.HEAD_COLLECT_MAX do
 			if i ~= curCard.headIndex_ then
 				local mCard = list[i]
 				if mCard then
@@ -480,7 +561,7 @@ function SeedGrade:judgeCollect_(curCard,list)
 	end
 end
 
-function SeedGrade:autoCollect_()
+function SeedGradeTest:autoCollect_()
 	local aiMoveVO_ = self:collect_()
 	if not aiMoveVO_ then
 		return
@@ -489,7 +570,21 @@ function SeedGrade:autoCollect_()
 	self:doMoveLogic_(aiMoveVO_,handler(self, self.autoCollect_))
 end
 
-function SeedGrade:aiCollect_()
+function SeedGradeTest:passScoreLogic_()
+	printf("[AI] -- :分数 %s + 50",tostring(self.score_))
+	self.score_ = self.score_ + BattleManagerAI.PASS_COLLECT_SCORE
+end
+
+function SeedGradeTest:scoreLogic_(card)
+	local add_ = 1
+	if self.delegate_ and self.delegate_.getAddScore then
+		add_ = self.delegate_:getAddScore(card)
+	end
+	printf("[AI] -- :分数 %s + %s",tostring(self.score_),tostring(add_))
+	self.score_ = self.score_ + add_
+end
+
+function SeedGradeTest:aiCollect_()
 	local aiMoveVO_ = self:collect_()
 	if not aiMoveVO_ then
 		return false
@@ -497,13 +592,14 @@ function SeedGrade:aiCollect_()
 
 	printf("[AI] -- :收取 %s",aiMoveVO_.card_:getCardName())
 
+	self:scoreLogic_(aiMoveVO_.card_)
 	self:doMoveLogic_(aiMoveVO_)
 	return true
 end
 
-function SeedGrade:collect_()
+function SeedGradeTest:collect_()
 	--玩牌区
-	for i=SeedGrade.HEAD_COLUMN_1,SeedGrade.HEAD_COLUMN_MAX do 
+	for i=SeedGradeTest.HEAD_COLUMN_1,SeedGradeTest.HEAD_COLUMN_MAX do 
 		local card = DealerController.getQueueEndCardVO(self.headsList_[i])
 		
 		if card then
@@ -514,32 +610,31 @@ function SeedGrade:collect_()
 		end
 	end
 
-	for i = SeedGrade.HEAD_CHANGE_1,SeedGrade.HEAD_CHANGE_MAX do
-		local card = DealerController.getQueueEndCardVO(self.headsList_[i])
-		if card then
-			local aiMoveVO_ = self:judgeCollect_(card,self.headsList_)
-			if aiMoveVO_ then
-				return aiMoveVO_
-			end
+	--切牌区(已打开)
+	local card = DealerController.getQueueEndCardVO(self.headsList_[SeedGradeTest.HEAD_CHANGE_1])
+	if card then
+		local aiMoveVO_ = self:judgeCollect_(card,self.headsList_)
+		if aiMoveVO_ then
+			return aiMoveVO_
 		end
 	end
 end
 
 --头牌是K
-function SeedGrade:isHeadK_(card)
+function SeedGradeTest:isHeadK_(card)
 	if not card:getBeforeCard() and card.rank_ == CardVO.RANK_KING then
 		return true
 	end
 	return false
 end
 
-function SeedGrade:judgeMove_(curCard,list,ignoreCol)
+function SeedGradeTest:judgeMove_(curCard,list,ignoreCol)
 	if not curCard then
 		return
 	end
 	
 	--如果属于玩牌区,则走一下逻辑
-	if curCard.headIndex_ >= SeedGrade.HEAD_COLUMN_1 and curCard.headIndex_ <= SeedGrade.HEAD_COLUMN_MAX then
+	if curCard.headIndex_ >= SeedGradeTest.HEAD_COLUMN_1 and curCard.headIndex_ <= SeedGradeTest.HEAD_COLUMN_MAX then
 		--如果curCard是K,且为头牌,则不考虑移动
 		if self:isHeadK_(curCard) then
 			return
@@ -550,7 +645,7 @@ function SeedGrade:judgeMove_(curCard,list,ignoreCol)
 		end
 	end
 	
-	for i=SeedGrade.HEAD_COLUMN_1,SeedGrade.HEAD_COLUMN_MAX do
+	for i=SeedGradeTest.HEAD_COLUMN_1,SeedGradeTest.HEAD_COLUMN_MAX do
 		if DealerController.judgePickUp(curCard) == DealerController.PICK_ABLE then
 			--判断序列是否可被拾取
 			if i ~= curCard.headIndex_ and i ~= ignoreCol then
@@ -571,10 +666,10 @@ function SeedGrade:judgeMove_(curCard,list,ignoreCol)
 end
 
 --判断AI是否需要空列
-function SeedGrade:judgeNeedEmptyCol_()
+function SeedGradeTest:judgeNeedEmptyCol_()
 	local emptyColNum_ = 0 --空列数
 	local headKColNum_ = 0 --打头是K的列数
-	for i=SeedGrade.HEAD_COLUMN_1,SeedGrade.HEAD_COLUMN_MAX do
+	for i=SeedGradeTest.HEAD_COLUMN_1,SeedGradeTest.HEAD_COLUMN_MAX do
 		local card = self.headsList_[i]
 		--该队列第一张正面的牌
 		card = DealerController.getFirstFaceCardFromHead(card)
@@ -594,20 +689,23 @@ function SeedGrade:judgeNeedEmptyCol_()
 end
 
 --切牌 返回有无牌可切
-function SeedGrade:change_()
+function SeedGradeTest:change_()
 	local operationCount = 1--操作卡牌的数量
+	if self.isDraw3_ then
+		operationCount = 3
+	end
 	--切牌区(未打开)处有牌
-	if self.headsList_[SeedGrade.HEAD_CHANGE_MAX] then
-		self:putCardToChangeBy_(operationCount,SeedGrade.HEAD_CHANGE_1)
+	if self.headsList_[SeedGradeTest.HEAD_CHANGE_MAX] then
+		self:putCardToChangeBy_(operationCount,SeedGradeTest.HEAD_CHANGE_1)
 	else --切牌区(未打开)处没牌
 		--将开放区的牌回复
-		if not self.headsList_[SeedGrade.HEAD_CHANGE_1] then
+		if not self.headsList_[SeedGradeTest.HEAD_CHANGE_1] then
 			--此时换牌区已经无牌
 			return false
 		end
 		--切牌区(已打开)的牌数
-		operationCount = DealerController.getQueueLenByHead(self.headsList_[SeedGrade.HEAD_CHANGE_1])
-		self:putCardToChangeBy_(operationCount,SeedGrade.HEAD_CHANGE_MAX)
+		operationCount = DealerController.getQueueLenByHead(self.headsList_[SeedGradeTest.HEAD_CHANGE_1])
+		self:putCardToChangeBy_(operationCount,SeedGradeTest.HEAD_CHANGE_MAX)
 	end
 	return true
 end
@@ -615,15 +713,15 @@ end
 --切牌区切牌逻辑
 --count:数量
 --toIndex:区分 已打开 和 未打开
-function SeedGrade:putCardToChangeBy_(count,toIndex)
+function SeedGradeTest:putCardToChangeBy_(count,toIndex)
 	if count < 1 then
 		return
 	end
 
 	--根据 to区的(已打开或未打开) 来定义 from区的(已打开或未打开)
-	local fromIndex = SeedGrade.HEAD_CHANGE_MAX
-	if toIndex == SeedGrade.HEAD_CHANGE_MAX then
-		fromIndex = SeedGrade.HEAD_CHANGE_1
+	local fromIndex = SeedGradeTest.HEAD_CHANGE_MAX
+	if toIndex == SeedGradeTest.HEAD_CHANGE_MAX then
+		fromIndex = SeedGradeTest.HEAD_CHANGE_1
 	end
 	local card_ = self.headsList_[fromIndex]
 	if card_ then
@@ -645,14 +743,14 @@ function SeedGrade:putCardToChangeBy_(count,toIndex)
 	if self.aiAutoCollect_ then
 		call_ = handler(self, self.autoCollect_)
 	end
-	if toIndex == SeedGrade.HEAD_CHANGE_MAX then --如果是往切牌区(未打开)落牌，则不考虑自动收牌
+	if toIndex == SeedGradeTest.HEAD_CHANGE_MAX then --如果是往切牌区(未打开)落牌，则不考虑自动收牌
 		call_ = nil
 	end
 	self:doMoveLogic_(aiMoveVO_,call_)	
 end
 
 -- 判断 beforeCard 和 nextCard 可不可能为一列
-function SeedGrade:judgeCanBeSameCol_(beforeCard,nextCard)
+function SeedGradeTest:judgeCanBeSameCol_(beforeCard,nextCard)
 	if not beforeCard then
 		return false
 	end
@@ -677,7 +775,7 @@ function SeedGrade:judgeCanBeSameCol_(beforeCard,nextCard)
 end
 
 -- 切牌区放入玩牌区策略
-function SeedGrade:judgeChangePut_(aiMoveVO)
+function SeedGradeTest:judgeChangePut_(aiMoveVO)
 	if not aiMoveVO then
 		return
 	end
@@ -687,7 +785,7 @@ function SeedGrade:judgeChangePut_(aiMoveVO)
 		return aiMoveVO
 	else -- 一张牌切牌区放入玩牌区策略
 		if moveCard_.rank_ < CardVO.RANK_THREE then --点数小于3
-			-- return
+			return
 		end
 		if moveCard_.rank_ == CardVO.RANK_KING then --点数等于K
 			--如果不缺空列，则直接落下K
@@ -696,7 +794,7 @@ function SeedGrade:judgeChangePut_(aiMoveVO)
 			end
 			--如果缺空列，则进行以下逻辑
 			--如果玩牌区有可以落在上面的Q，则落下K，否则不落下K
-			for i=SeedGrade.HEAD_COLUMN_1,SeedGrade.HEAD_COLUMN_MAX do
+			for i=SeedGradeTest.HEAD_COLUMN_1,SeedGradeTest.HEAD_COLUMN_MAX do
 				local card = self.headsList_[i]
 				--该队列第一张正面的牌
 				card = DealerController.getFirstFaceCardFromHead(card)
@@ -715,7 +813,7 @@ function SeedGrade:judgeChangePut_(aiMoveVO)
 		end
 
 		local possible_ = false
-		for i=SeedGrade.HEAD_COLUMN_1,SeedGrade.HEAD_COLUMN_MAX do
+		for i=SeedGradeTest.HEAD_COLUMN_1,SeedGradeTest.HEAD_COLUMN_MAX do
 			if i ~= aiMoveVO.toIndex_ then -- 不考虑目标列
 				local card = self.headsList_[i]
 				--该队列最后一张牌
@@ -744,103 +842,15 @@ function SeedGrade:judgeChangePut_(aiMoveVO)
 end
 
 --判断切牌区是否有牌可落在玩牌区
-function SeedGrade:changePut_()
-	local aiMoveList_ = {}
-	local card = DealerController.getQueueEndCardVO(self.headsList_[SeedGrade.HEAD_CHANGE_1])
-	-- if card then
-	-- 	local aiMoveVO_ = self:judgeMove_(card,self.headsList_)
-	-- 	return self:judgeChangePut_(aiMoveVO_)
-	-- end
-	while card do
+function SeedGradeTest:changePut_()
+	local card = DealerController.getQueueEndCardVO(self.headsList_[SeedGradeTest.HEAD_CHANGE_1])
+	if card then
 		local aiMoveVO_ = self:judgeMove_(card,self.headsList_)
-		if aiMoveVO_ then
-			aiMoveList_[#aiMoveList_ + 1] = aiMoveVO_
-		end
-		card = card:getNextCard()
+		return self:judgeChangePut_(aiMoveVO_)
 	end
-	local aiMoveVO_ = self:selectAiChangeMove_(aiMoveList_)
-	return aiMoveVO_
 end
 
-function SeedGrade:checkIsHaveQ( aiMove )
-	--判断牌桌上的Q
-	local gradeLevel = -1
-	for i=SeedGrade.HEAD_COLUMN_1,SeedGrade.HEAD_COLUMN_MAX do
-		local card = self.headsList_[i]
-		--该队列第一张正面的牌
-		card = DealerController.getFirstFaceCardFromHead(card)
-		if card then
-			local b = DealerController.judgePutDown(aiMove.card_,card)
-			if b then
-				gradeLevel = 1
-				return gradeLevel
-			else
-				if card:getProperty("rank") == CardVO.RANK_QUEEN then
-					gradeLevel = -1
-				end
-			end
-		end
-	end
-
-	--判断集牌区Q
-	for i=SeedGrade.HEAD_CHANGE_1,SeedGrade.HEAD_CHANGE_1 do
-		local last_card = self.headsList_[i]
-		
-		while last_card do
-			if last_card:getProperty("rank") == CardVO.RANK_QUEEN and last_card:getProperty("board") == CardVO.BOARD_FACE then
-				local b = DealerController.judgePutDown(aiMove.card_,card)
-				if b then
-					gradeLevel = 1
-					return gradeLevel
-				else
-					if last_card:getProperty("rank") == CardVO.RANK_QUEEN then
-						gradeLevel = -1
-					end
-				end
-			end
-			last_card = last_card:getNextCard()
-		end
-	end
-	return gradeLevel
-end
-
-function SeedGrade:selectAiChangeMove_( aiMoveList )
-	local resultAiMoveList2_ = {}
-	-- dump(aiMoveList,'aiMoveList===>>>.')
-	for i = 1,#aiMoveList do 
-		local card_ = aiMoveList[i].card_
-		local toindecxx = aiMoveList[i].toIndex_
-		local head_index = card_:getProperty("headIndex")
-		local beforeCard_ = card_:getBeforeCard()
-		
-		if card_.rank_ ~= CardVO.RANK_KING then --点数不等于等于K
-			aiMoveList[i].weight_ = 1
-		else
-			aiMoveList[i].weight_ = self:checkIsHaveQ(aiMoveList[i])
-		end
-
-		if #resultAiMoveList2_ < 1 then
-			resultAiMoveList2_[1] = aiMoveList[i]
-		elseif resultAiMoveList2_[1].weight_ == aiMoveList[i].weight_ then
-			resultAiMoveList2_[#resultAiMoveList2_ + 1] = aiMoveList[i]
-		elseif resultAiMoveList2_[1].weight_ < aiMoveList[i].weight_ then
-			resultAiMoveList2_ = {}
-			resultAiMoveList2_[1] = aiMoveList[i]
-		end
-	end
-
-	if #resultAiMoveList2_ < 1 then
-		return
-	elseif #resultAiMoveList2_ == 1 then
-		return resultAiMoveList2_[1]
-	end
-
-	local len_ = #resultAiMoveList2_
-	local random_ = math.random(1,len_)
-	return resultAiMoveList2_[random_]
-end
-
-function SeedGrade:findCardWitchCanCollectByHead_(before,head)
+function SeedGradeTest:findCardWitchCanCollectByHead_(before,head)
 	if not head then
 		return
 	end
@@ -854,13 +864,13 @@ function SeedGrade:findCardWitchCanCollectByHead_(before,head)
 	return self:findCardWitchCanCollectByHead_(before,head)
 end
 
-function SeedGrade:findCardWitchCanCollect_()
+function SeedGradeTest:findCardWitchCanCollect_()
 	local list_ = {}
-	for i=SeedGrade.HEAD_COLLECT_1,SeedGrade.HEAD_COLLECT_MAX do
+	for i=SeedGradeTest.HEAD_COLLECT_1,SeedGradeTest.HEAD_COLLECT_MAX do
 		local before = self.headsList_[i]
 		if before then
 			before = DealerController.getQueueEndCardVO(before)			
-			for col=SeedGrade.HEAD_COLUMN_1,SeedGrade.HEAD_COLUMN_MAX do
+			for col=SeedGradeTest.HEAD_COLUMN_1,SeedGradeTest.HEAD_COLUMN_MAX do
 				local card = self.headsList_[col]
 				if card then
 					local result_ = self:findCardWitchCanCollectByHead_(before,card)
@@ -876,11 +886,11 @@ function SeedGrade:findCardWitchCanCollect_()
 end
 
 --判断玩牌区是否可以有效移动
-function SeedGrade:move_()
+function SeedGradeTest:move_()
 	local aiMoveList_ = {}
 
 	--移动可翻牌或者空出一列的情况
-	for i=SeedGrade.HEAD_COLUMN_1,SeedGrade.HEAD_COLUMN_MAX do
+	for i=SeedGradeTest.HEAD_COLUMN_1,SeedGradeTest.HEAD_COLUMN_MAX do
 		local card = self.headsList_[i]
 		--该队列第一张正面的牌
 		card = DealerController.getFirstFaceCardFromHead(card)
@@ -925,12 +935,12 @@ function SeedGrade:move_()
 	if #selList_ == 1 then -- 没有两列同时往一列移动的情况
 		return selList_[1]
 	end
-	print("··list-->>>·",#selList_)
+
 	local aiMoveVO_ = self:selectAiMove_(selList_)
 	return aiMoveVO_
 end
 
-function SeedGrade:copyFaceCard_(card)
+function SeedGradeTest:copyFaceCard_(card)
 	local result = CardVO.new({
 				deck = card.deck_,
 				suit = card.suit_, --花色
@@ -943,68 +953,7 @@ function SeedGrade:copyFaceCard_(card)
 	return result
 end
 
-function SeedGrade:selectAiMove_( aiMoveList )
-	local resultAiMoveList2_ = {}
-	-- dump(aiMoveList,'aiMoveList===>>>.')
-	for i = 1,#aiMoveList do 
-		local card_ = aiMoveList[i].card_
-		local toindecxx = aiMoveList[i].toIndex_
-		local head_index = card_:getProperty("headIndex")
-		local beforeCard_ = card_:getBeforeCard()
-		
-		if beforeCard_ then
-			local m_index = 1
-			local last_card = self.headsList_[head_index]
-			-- dump(last_card)
-			local len = DealerController.getQueueLenByBottom(last_card)
-			print("paishu ==>>suit",card_:getProperty("suit") .. " rank",card_:getProperty("rank") .. " toindecxx-->>>",toindecxx .. "  head_index-->>",head_index .. "list长度",len)
-			while last_card do
-				if last_card:getProperty("board") == CardVO.BOARD_BACK then
-					m_index = m_index + 1
-				end
-				last_card = last_card:getNextCard()
-			end
-			print('--->>>>>>深度为：',m_index,last_card,beforeCard_)
-			aiMoveList[i].weight_ = aiMoveList[i].weight_ + m_index
-		else
-			if self.isNeedEmptyCol_ then --需要空列
-				--是否有不是头牌的K
-				local haveNotHeadKCard_ = self:judgeNotHeadKCard_(self.headsList_)
-				if haveNotHeadKCard_ then --如果有不是头牌的K    权重+0.9
-					aiMoveList[i].weight_ = aiMoveList[i].weight_ + 1
-				end
-
-				--切牌区有K
-				local changeCardList_ = self:getChangeCardBy_(self.headsList_,CardVO.RANK_KING)
-				if #changeCardList_ > 0 then --切牌区有K    权重+0.5
-					aiMoveList[i].weight_ = aiMoveList[i].weight_ + 0.5
-				end
-				-- dump(changeCardList_,'===>>>')
-			end
-		end
-
-		if #resultAiMoveList2_ < 1 then
-			resultAiMoveList2_[1] = aiMoveList[i]
-		elseif resultAiMoveList2_[1].weight_ == aiMoveList[i].weight_ then
-			resultAiMoveList2_[#resultAiMoveList2_ + 1] = aiMoveList[i]
-		elseif resultAiMoveList2_[1].weight_ < aiMoveList[i].weight_ then
-			resultAiMoveList2_ = {}
-			resultAiMoveList2_[1] = aiMoveList[i]
-		end
-	end
-
-	if #resultAiMoveList2_ < 1 then
-		return
-	elseif #resultAiMoveList2_ == 1 then
-		return resultAiMoveList2_[1]
-	end
-
-	local len_ = #resultAiMoveList2_
-	local random_ = math.random(1,len_)
-	return resultAiMoveList2_[random_]
-end
-
-function SeedGrade:selectAiMove2_(aiMoveList)
+function SeedGradeTest:selectAiMove_(aiMoveList)
 	local resultAiMoveList_ = {}
 	for i=1,#aiMoveList do
 		local card_ = aiMoveList[i].card_
@@ -1041,9 +990,9 @@ function SeedGrade:selectAiMove2_(aiMoveList)
 			-- printf("---isCanPutChange_-------->%s",tostring(isCanPutChange_))
 			--是否有相同色系的同点数的牌已存在
 			local isSameCard_ = self:judgeSameCard_(copyCard_,self.headsList_)
-			if isSameCard_ == SeedGrade.sameCard_no then --没有    权重+0.3
+			if isSameCard_ == SeedGradeTest.sameCard_no then --没有    权重+0.3
 				aiMoveList[i].weight_ = aiMoveList[i].weight_ + 0.3
-			elseif isSameCard_ == SeedGrade.sameCard_yes_can_collect then --有,但是可以消掉   权重+0.8
+			elseif isSameCard_ == SeedGradeTest.sameCard_yes_can_collect then --有,但是可以消掉   权重+0.8
 				aiMoveList[i].weight_ = aiMoveList[i].weight_ + 0.8
 			end
 			-- printf("---isSameCard_-------->%s",tostring(isSameCard_))
@@ -1085,7 +1034,7 @@ function SeedGrade:selectAiMove2_(aiMoveList)
 	return resultAiMoveList_[random_]
 end
 
-function SeedGrade:isEndlessLoop_(aiMoveVO)
+function SeedGradeTest:isEndlessLoop_(aiMoveVO)
 	local key_ = self:createKeyByAiMoveVO_(aiMoveVO)
 	if not key_ then
 		return false
@@ -1099,11 +1048,11 @@ function SeedGrade:isEndlessLoop_(aiMoveVO)
 	if self.recordList_[key_] < 5 then
 		return false
 	end
-	printf("SeedGrade:isEndlessLoop == [%s]", tostring(key_))
+	printf("SeedGradeTest:isEndlessLoop == [%s]", tostring(key_))
 	return true
 end
 
-function SeedGrade:createKeyByAiMoveVO_(aiMoveVO)
+function SeedGradeTest:createKeyByAiMoveVO_(aiMoveVO)
 	local toIndex_ = aiMoveVO.toIndex_
 	if not toIndex_ then
 		return
@@ -1116,9 +1065,10 @@ function SeedGrade:createKeyByAiMoveVO_(aiMoveVO)
 	return key_
 end
 
-function SeedGrade:recordMoveStep_(aiMoveVO)
+--
+function SeedGradeTest:recordMoveStep_(aiMoveVO)
 	local toIndex_ = aiMoveVO.toIndex_
-	if toIndex_ >= SeedGrade.HEAD_CHANGE_1 or toIndex_ <= SeedGrade.HEAD_CHANGE_MAX then
+	if toIndex_ >= SeedGradeTest.HEAD_CHANGE_1 or toIndex_ <= SeedGradeTest.HEAD_CHANGE_MAX then
 		return
 	end
 	local key_ = self:createKeyByAiMoveVO_(aiMoveVO)
@@ -1135,7 +1085,7 @@ function SeedGrade:recordMoveStep_(aiMoveVO)
 	self.recordList_[key_] = self.recordList_[key_] + 1
 end
 
-function SeedGrade:doMoveLogic_(aiMoveVO,call)
+function SeedGradeTest:doMoveLogic_(aiMoveVO,call)
 	if not aiMoveVO then
 		return
 	end
@@ -1151,7 +1101,7 @@ function SeedGrade:doMoveLogic_(aiMoveVO,call)
 	if before_ then
 		before_:setNextCard(nil)
 		--如果是属于玩牌区的移动，且有before_，则要把before_翻成正面
-		if card.headIndex_ >= SeedGrade.HEAD_COLUMN_1 and card.headIndex_ <= SeedGrade.HEAD_COLUMN_MAX then
+		if card.headIndex_ >= SeedGradeTest.HEAD_COLUMN_1 and card.headIndex_ <= SeedGradeTest.HEAD_COLUMN_MAX then
 			before_:setProperty("board", CardVO.BOARD_FACE)
 		end
 	else
@@ -1162,11 +1112,11 @@ function SeedGrade:doMoveLogic_(aiMoveVO,call)
 	local temCard = card
 	while temCard do
 		temCard:setProperty("headIndex", toIndex_)
-		if toIndex_ == SeedGrade.HEAD_CHANGE_1 then --如果是往切牌区(已打开)放牌，则把牌翻正
+		if toIndex_ == SeedGradeTest.HEAD_CHANGE_1 then --如果是往切牌区(已打开)放牌，则把牌翻正
 			temCard:setProperty("board", CardVO.BOARD_FACE)
-		elseif toIndex_ == SeedGrade.HEAD_CHANGE_MAX then --如果是往切牌区(未打开)放牌，则把牌翻背
-			temCard:setProperty("board", CardVO.BOARD_FACE) --todo
-		elseif toIndex_ >= SeedGrade.HEAD_COLLECT_1 and toIndex_ <= SeedGrade.HEAD_COLLECT_MAX then --如果是往集牌区放牌，则把牌翻正
+		elseif toIndex_ == SeedGradeTest.HEAD_CHANGE_MAX then --如果是往切牌区(未打开)放牌，则把牌翻背
+			temCard:setProperty("board", CardVO.BOARD_BACK)
+		elseif toIndex_ >= SeedGradeTest.HEAD_COLLECT_1 and toIndex_ <= SeedGradeTest.HEAD_COLLECT_MAX then --如果是往集牌区放牌，则把牌翻正
 			temCard:setProperty("board", CardVO.BOARD_FACE)
 		end
 		temCard = temCard:getNextCard()
@@ -1182,216 +1132,168 @@ function SeedGrade:doMoveLogic_(aiMoveVO,call)
 		self.headsList_[toIndex_] = card
 	end
 
+	if toIndex_ >= SeedGradeTest.HEAD_COLLECT_1 and toIndex_ <= SeedGradeTest.HEAD_COLLECT_MAX  then
+		EventNoticeManager:getInstance():dispatchEvent({name = Notice.USER_AIDATA_CHANGE})
+	end
+
 	if call then
 		call()
 	end
 end
 
-function SeedGrade:getCollectionEndCardVO( _headindex )
-	local suitRank = {}
-	suitRank.suit = 0
-	suitRank.rank = 0
-	suitRank.color = 0
-	suitRank.ZeroValue = 0
-	local end_card = self.headsList_[_headindex]
-	if end_card then
-		end_card = DealerController.getQueueEndCardVO(end_card)
-		local suit = end_card:getProperty("suit")
-		local rank = end_card:getProperty("rank")
-		local colorCard = end_card:getCardColor()
-		suitRank.suit = suit
-		suitRank.rank = rank
-		suitRank.color = colorCard
-	end
-	return suitRank
-end
-
-function SeedGrade:MaxMinWithValue( valueTable )
-	local m_max = {}
-	local m_min = {}
-	local temp = {}
-	if valueTable[1].rank >= valueTable[2].rank then
-		table.merge(m_max,valueTable[1])
-		table.merge(m_min,valueTable[2])
-	else
-		table.merge(m_max,valueTable[2])
-		table.merge(m_min,valueTable[1])
-	end
-	return m_max,m_min
-end
-
-function SeedGrade:JudgeQuickCollection( cardSp )
-	local m_tabCollectRed = {}
-	local m_tabCollectBlack = {}
-	local m_tabCollect = {}
-	local m_tabCollectEmpty = {}
-	--不可快速集牌数组
-	local m_notFastCollect = {}
-	--判断集牌区
-	for i=SeedGrade.HEAD_COLLECT_1,SeedGrade.HEAD_COLLECT_MAX do
-		local m_tabCard = self:getCollectionEndCardVO(i)
-		m_tabCollect[i-7] = m_tabCard
-		if m_tabCard.color == 1 then
-			--红色系
-			table.insert(m_tabCollectRed,m_tabCard)
-		elseif m_tabCard.color == 2 then
-			--黑色系
-			table.insert(m_tabCollectBlack,m_tabCard)
-		else
-			table.insert(m_tabCollectEmpty,m_tabCard)
+--打印AI牌局
+function SeedGradeTest:printCol()
+	printf(" ================================ ")
+	printf(" ------[集牌区]------  --[切牌区]--")
+	local arr_ = {}
+	for i=SeedGradeTest.HEAD_COLLECT_1,SeedGradeTest.HEAD_COLLECT_MAX do
+		local name_ = "    |"
+		if self.headsList_[i] then
+			local card = DealerController.getQueueEndCardVO(self.headsList_[i])
+			if card then
+				local ss_ = " |"
+				if card.rank_ == CardVO.RANK_TEN then
+					ss_ = "|"
+				end
+				name_ = card:getCardName()..ss_
+			end
 		end
+		arr_[#arr_ + 1] = name_
 	end
-	for i,v in ipairs(m_tabCollectEmpty) do
-		if #m_tabCollectRed < 2 then
-			table.insert(m_tabCollectRed,v)
-		else
-			table.insert(m_tabCollectBlack,v)
-		end
-	end
-	local red_max,red_min = self:MaxMinWithValue(m_tabCollectRed)
-	local black_max,black_min = self:MaxMinWithValue(m_tabCollectBlack)
-	if ( red_max.rank - black_min.rank ) >= 2 then
-		table.insert(m_notFastCollect,red_max)
-	end
-	if ( black_max.rank - red_min.rank ) >= 2 then
-		table.insert(m_notFastCollect,black_max)
-	end 
-	if red_min.rank == red_max.rank and ( red_max.rank - black_min.rank ) >= 2 then
-		table.insert(m_notFastCollect,red_min)
-	end
-
-	if black_min.rank == black_max.rank and ( black_max.rank - red_min.rank ) >= 2 then
-		table.insert(m_notFastCollect,black_min)
-	end
-
-	for i,v in ipairs(m_notFastCollect) do
-		if v.color == cardSp:getCardColor() and v.suit == cardSp:getProperty("suit") then
-			return false
-		end
-	end
-	return true
-end
-
-function SeedGrade:autoQuickCollection()
-	function collect( headIndex )
-		if headIndex < SeedGrade.HEAD_COLLECT_1 or headIndex > SeedGrade.HEAD_COLLECT_MAX then
-			return false
-		end
-		local suit = 0
-		local rank = 0
-		local end_card = self.headsList_[headIndex]
-		if end_card then
-			end_card = DealerController.getQueueEndCardVO(end_card)
-			suit = end_card:getProperty("suit")
-			rank = end_card:getProperty("rank") 
-		end
-		--玩牌区
-		for i=SeedGrade.HEAD_COLUMN_1,SeedGrade.HEAD_COLUMN_MAX do 
-			local last_card = self.headsList_[i]
-			if last_card then
-				last_card = DealerController.getQueueEndCardVO(last_card)
-				local aiMoveVO_ = self:judgeCollect1_(end_card, last_card, rank, suit, headIndex)
-				if aiMoveVO_ then
-					return true,aiMoveVO_
+	for i=SeedGradeTest.HEAD_CHANGE_1,SeedGradeTest.HEAD_CHANGE_MAX do
+		local name_ = "    |"
+		if i == SeedGradeTest.HEAD_CHANGE_1 then
+			if self.headsList_[i] then
+				local card = DealerController.getQueueEndCardVO(self.headsList_[i])
+				if card then
+					local ss_ = " |"
+					if card.rank_ == CardVO.RANK_TEN then
+						ss_ = "|"
+					end
+					name_ = card:getCardName()..ss_
 				end
 			end
+		else
+			if self.headsList_[i] then
+				name_ = "  ? |"
+			end
 		end
+		arr_[#arr_ + 1] = name_
+	end
+	printf("  |%s%s%s%s====|%s%s", arr_[1], arr_[2], arr_[3], arr_[4], arr_[5], arr_[6])
+	printf(" -------------[玩牌区]------------- ")
+	local arrList_ = {}
+	local len_ = 7
+	for i=SeedGradeTest.HEAD_COLUMN_1,SeedGradeTest.HEAD_COLUMN_MAX do
+		local list_ = DealerController.getListByHead(self.headsList_[i])
+		if len_ < #list_ then
+			len_ = #list_
+		end
+		arrList_[i] = list_
+	end
 
-		for i = SeedGrade.HEAD_CHANGE_1,SeedGrade.HEAD_CHANGE_MAX do
-			local last_card = self.headsList_[i]
-			-- print('change_max--->>>',i)
-			while last_card do
-				-- printf("名字 %s--->>>>%s",last_card:getCardName(),last_card:getNextCard())
-				local aiMoveVO_ = self:judgeCollect1_(end_card, last_card, rank, suit, headIndex)
-				if aiMoveVO_ then
-					return true,aiMoveVO_
+	for i=1,len_ do
+		-- 第1列
+		local str1_ = "    |"
+		local card1_ = arrList_[1][i]
+		if card1_ then
+			if card1_.board_ == CardVO.BOARD_BACK then
+				str1_ = "  ? |"
+			else
+				local ss_ = " |"
+				if card1_.rank_ == CardVO.RANK_TEN then
+					ss_ = "|"
 				end
-				last_card = last_card:getNextCard()
+				str1_ = card1_:getCardName()..ss_
 			end
 		end
-		return false
-	end
-	function collectCard( ... )
-		for i = SeedGrade.HEAD_COLLECT_1,SeedGrade.HEAD_COLLECT_MAX do
-			local ok,aiMoveVO_ = collect(i)
-			-- print("--->>>>>>",i,ok,aiMoveVO_)
-			if ok  and aiMoveVO_ then
-				printf("[AI] -- :快速收取 %s",aiMoveVO_.card_:getCardName())
-				self.isQuick = true
-				self:doMoveLogic1_(aiMoveVO_)
-			end
-			if i == SeedGrade.HEAD_COLLECT_MAX and ok == false then
-				self.isQuick = false
-				-- if self.scheduleHandle then
-			 --        scheduler.unscheduleGlobal(self.scheduleHandle)
-			 --        self.scheduleHandle = nil
-			 --    end
+		-- 第2列
+		local str2_ = "    |"
+		local card2_ = arrList_[2][i]
+		if card2_ then
+			if card2_.board_ == CardVO.BOARD_BACK then
+				str2_ = "  ? |"
+			else
+				local ss_ = " |"
+				if card2_.rank_ == CardVO.RANK_TEN then
+					ss_ = "|"
+				end
+				str2_ = card2_:getCardName()..ss_
 			end
 		end
-	end
-	collectCard()
-end
-
-function SeedGrade:doMoveLogic1_(aiMoveVO,call)
-	if not aiMoveVO then
-		return
-	end
-	local card = aiMoveVO.card_
-	if not card then
-		return
-	end
-
-	--防死循环处理
-	self:recordMoveStep_(aiMoveVO)
-	card:setProperty("board", CardVO.BOARD_FACE)
-	local before_ = card:getBeforeCard()
-	--保持原链接的完整性
-	if card:getBeforeCard() then
-		--当card_next不是队首时，需要链接其前后两张
-		card:getBeforeCard():setNextCard(card:getNextCard())
-		--如果是属于玩牌区的移动，且有before_，则要把before_翻成正面
-		if card.headIndex_ >= SeedGrade.HEAD_COLUMN_1 and card.headIndex_ <= SeedGrade.HEAD_COLUMN_MAX then
-			before_:setProperty("board", CardVO.BOARD_FACE)
+		-- 第3列
+		local str3_ = "    |"
+		local card3_ = arrList_[3][i]
+		if card3_ then
+			if card3_.board_ == CardVO.BOARD_BACK then
+				str3_ = "  ? |"
+			else
+				local ss_ = " |"
+				if card3_.rank_ == CardVO.RANK_TEN then
+					ss_ = "|"
+				end
+				str3_ = card3_:getCardName()..ss_
+			end
 		end
-	else
-		--当card_next是队首时，需要将headlist设置为它的下一张牌
-		self.headsList_[card:getProperty("headIndex")] = card:getNextCard()
-	end
-	if card:getNextCard() then
-		card:getNextCard():setBeforeCard(card:getBeforeCard())
-	end
+		-- 第4列
+		local str4_ = "    |"
+		local card4_ = arrList_[4][i]
+		if card4_ then
+			if card4_.board_ == CardVO.BOARD_BACK then
+				str4_ = "  ? |"
+			else
+				local ss_ = " |"
+				if card4_.rank_ == CardVO.RANK_TEN then
+					ss_ = "|"
+				end
+				str4_ = card4_:getCardName()..ss_
+			end
+		end
+		-- 第5列
+		local str5_ = "    |"
+		local card5_ = arrList_[5][i]
+		if card5_ then
+			if card5_.board_ == CardVO.BOARD_BACK then
+				str5_ = "  ? |"
+			else
+				local ss_ = " |"
+				if card5_.rank_ == CardVO.RANK_TEN then
+					ss_ = "|"
+				end
+				str5_ = card5_:getCardName()..ss_
+			end
+		end
+		-- 第6列
+		local str6_ = "    |"
+		local card6_ = arrList_[6][i]
+		if card6_ then
+			if card6_.board_ == CardVO.BOARD_BACK then
+				str6_ = "  ? |"
+			else
+				local ss_ = " |"
+				if card6_.rank_ == CardVO.RANK_TEN then
+					ss_ = "|"
+				end
+				str6_ = card6_:getCardName()..ss_
+			end
+		end
+		-- 第7列
+		local str7_ = "    |"
+		local card7_ = arrList_[7][i]
+		if card7_ then
+			if card7_.board_ == CardVO.BOARD_BACK then
+				str7_ = "  ? |"
+			else
+				local ss_ = " |"
+				if card7_.rank_ == CardVO.RANK_TEN then
+					ss_ = "|"
+				end
+				str7_ = card7_:getCardName()..ss_
+			end
+		end
 
-	--链接到新的队列
-	card:setNextCard(nil)
-	card:setBeforeCard(nil)
-	local toIndex_ = aiMoveVO.toIndex_
-	local card_before = card:getBeforeCard()
-	local temCard = card
-
-	local to_ = self.headsList_[toIndex_]
-	local toEnd_ = DealerController.getQueueEndCardVO(to_)
-
-	card:setBeforeCard(toEnd_)
-	if toEnd_ then
-		toEnd_:setNextCard(card)
-	else
-		self.headsList_[toIndex_] = card
+		printf("  |%s%s%s%s%s%s%s", str1_, str2_, str3_, str4_, str5_, str6_, str7_)
 	end
 end
 
-function SeedGrade:judgeCollect1_(card_before, card_next, rank, suit, headIndex)
-	local m_isCollect = self:JudgeQuickCollection(card_next)
-	if (rank == 0 or card_next:getProperty("suit") == suit) and card_next:getProperty("rank") == rank + 1 and m_isCollect then
-		local aiMoveVO_ = AIMoveVO.new({
-			card = card_next,
-			toIndex = headIndex,
-		})
-		return aiMoveVO_
-	end
-end
-
-function SeedGrade:aiQucikCollect_()
-	local aiMoveVO_ = self:autoQuickCollection()
-end
-
-return SeedGrade
+return SeedGradeTest
